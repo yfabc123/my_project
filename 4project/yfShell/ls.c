@@ -6,7 +6,7 @@
 #include <grp.h>
 #include <time.h>
 #include <stdio.h>
-
+#include <unistd.h>
 // ls 可能有多种形式 ls -a  ls -l 需增加判断
 void ls(cmdInfo_t *cmdInfo)
 {
@@ -50,19 +50,40 @@ void lsL(cmdInfo_t *cmdInfo)
         strcpy(subDir, parDir);
         strcat(subDir, "/");
         dir = readdir(Dir);
+        int ret;
         if (NULL == dir)
         {
-            perror("readdir");
+           // perror("readdir");
             return;
         }
         if (0 == strcmp(dir->d_name, ".") || 0 == strcmp(dir->d_name, ".."))
         {
             continue;
         }
-        strcpy(fileInfo->fileName, dir->d_name);
-        strcat(subDir, dir->d_name);
-        int ret = stat(subDir, &statBuf);
-        // printf("%s\n", dir->d_name);
+        strcat(subDir, dir->d_name); //  /parDir/subDir
+
+        if (dir->d_type == DT_LNK) // 链接文件需要单独处理下
+        {
+
+            // 拼接名称按照 soft_link_mydisk -> /mnt/mydisk
+            strcpy(fileInfo->fileName, dir->d_name);
+            strcat(fileInfo->fileName, " -> ");
+            char tempBuf[64] = {0};
+            size_t len = readlink(subDir, tempBuf, sizeof(fileInfo->fileName));
+            if (-1 == len)
+            {
+                //perror("readlink");
+                return;
+            }
+            tempBuf[len] = '\0';
+            strcat(fileInfo->fileName, tempBuf);
+            ret = lstat(subDir, &statBuf);
+        }
+        else
+        {
+            strcpy(fileInfo->fileName, dir->d_name);
+            ret = stat(subDir, &statBuf);
+        }
         if (0 != ret)
         {
             perror("stat");
@@ -83,11 +104,11 @@ void lsL(cmdInfo_t *cmdInfo)
 void show(lsFileInfo_t *fileInfo)
 {
     printf("%c", fileInfo->fileType);
-    printf("%s ", fileInfo->filePermissions);
-    printf("%d ", fileInfo->hardLinkNUm);
-    printf("%s ", fileInfo->userName);
-    printf("%s ", fileInfo->groupName);
-    printf("%d ", fileInfo->fileSize);
+    printf("%s", fileInfo->filePermissions);
+    printf("%4d", fileInfo->hardLinkNUm);
+    printf("%6s", fileInfo->userName);
+    printf("%s", fileInfo->groupName);
+    printf("%10d ", fileInfo->fileSize);
     printf("%s ", fileInfo->lastUpdatTime);
     printf("%s\n", fileInfo->fileName);
 }
@@ -95,6 +116,7 @@ void show(lsFileInfo_t *fileInfo)
 // 判断文件类型
 char lsFileType(mode_t mode)
 {
+
     if (S_ISREG(mode))
     {
         return '-'; // 普通文件

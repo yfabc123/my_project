@@ -13,7 +13,7 @@ void print_file_type(mode_t mode)
     {
         putchar('d'); // 目录
     }
-    else if (S_ISLNK(mode))
+    else if (__S_IFLNK & mode)
     {
         putchar('l'); // 符号链接
     }
@@ -43,12 +43,12 @@ int main()
 {
     struct stat file_stat;
 
-    if (stat("/wget-log.9", &file_stat) == -1)
+    if (stat("/vmlinuz", &file_stat) == -1)
     {
         perror("stat");
         return 1;
     }
-    printf("%d",file_stat.st_mode);
+    
     print_file_type(file_stat.st_mode);
     putchar('\n');
 

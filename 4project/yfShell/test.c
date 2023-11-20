@@ -1,27 +1,23 @@
+
+
 #include <stdio.h>
-#include <time.h>
-
-void printTime(struct timespec *st_mtim)
-{
-  //  time_t sec = st_mtim->tv_sec;
-    struct tm *timeinfo = localtime(&st_mtim->tv_sec);
-
-    // 将时间信息格式化为字符串
-    char buffer[80];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
-
-    // 打印格式化后的时间字符串
-    printf("Formatted Time: %s\n", buffer);
-}
+#include <unistd.h>
 
 int main()
 {
-    // 假设有一个 struct timespec 对象 st_mtim
-    struct timespec st_mtim;
-    st_mtim.tv_sec = time(NULL); // 设置为当前时间
+  const char *filename = "/vmlinuz"; // 替换成你的软连接文件名
+  char targetPath[256];
 
-    // 调用函数打印格式化后的时间
-    printTime(&st_mtim);
+  ssize_t len = readlink(filename, targetPath, sizeof(targetPath) - 1);
+  if (len != -1)
+  {
+    targetPath[len] = '\0';
+    printf("%s -> %s\n", filename, targetPath);
+  }
+  else
+  {
+    perror("Error");
+  }
 
-    return 0;
+  return 0;
 }
