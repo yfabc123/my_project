@@ -8,10 +8,9 @@
 #define CHANAGE_COUNT   2   //每次销毁创建线程个数
 
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
-#ifndef DEBUG_INFO
-#define DEBUG_INFO(arg) \
-    fprintf(stderr, "[%s,%s,%d]:%s\n", __FILE__, __FUNCTION__, __LINE__, arg)
-#endif
+
+#define DEBUG_INFO(arg, ...) \
+    fprintf(stderr, "[%s,%s,%d]:" arg "\n", __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 //线程池任务结构体
 typedef struct
