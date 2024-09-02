@@ -23,7 +23,7 @@ ThreadPool* creatThreadPool(int minThreadCount_, int maxThreadCount_)
     ThreadPool* pool = (ThreadPool*)malloc(sizeof(ThreadPool));
     if (!pool)
     {
-        DEBUG_INFO(strerror(errno));
+        DEBUG_INFO("%s", strerror(errno));
         return NULL;
     }
     pool->taskQueue = (ThreadpoolTask*)malloc(sizeof(ThreadpoolTask) * maxThreadCount_);
@@ -44,7 +44,7 @@ ThreadPool* creatThreadPool(int minThreadCount_, int maxThreadCount_)
     if (!pool->tids)
     {
         free(pool);
-        DEBUG_INFO(strerror(errno));
+        DEBUG_INFO("%s", strerror(errno));
         return NULL;
     }
     if (pthread_mutex_init(&pool->mutex, NULL) || pthread_mutex_init(&pool->busyThreadMutex, NULL) ||
@@ -52,14 +52,16 @@ ThreadPool* creatThreadPool(int minThreadCount_, int maxThreadCount_)
     {
         free(pool);
         free(pool->tids);
-        DEBUG_INFO(strerror(errno));
+        DEBUG_INFO("%s", strerror(errno));
         return NULL;
     }
     for (int i = 0; i < minThreadCount_; i++)
     {
         pthread_create(&(pool->tids)[i], NULL, workFun, (void*)pool);
+        pthread_detach(pool->tids[i]);
     }
     pthread_create(&pool->managerTid, NULL, managerFun, (void*)pool);
+    pthread_detach(pool->managerTid);
     return pool;
 }
 
@@ -153,6 +155,7 @@ void* managerFun(void* arg)
                 {
                     DEBUG_INFO("负载较高 待处理任务超过WAIT_TASK_COUNT需要创建线程");
                     pthread_create(&pool->tids[i], NULL, workFun, (void*)pool);
+                    pthread_detach(pool->tids[i]);
                     needThreadNum--;
                     pool->liveThreadCount++;
                 }
@@ -226,9 +229,11 @@ int threadPoolAdd(ThreadPool* pool, void* function(void* arg), void* arg)
 void threadPoolDestroy(ThreadPool* pool)
 {
     pool->shutDown = 1;
+    //由于创建线程全部设置为分离模式 所以回收所有线程时检查是否在执行的线程
+#if 0
     //回收管理员线程
     pthread_join(pool->managerTid, NULL);
-    //回收其余线程
+    //回收其余线程  
     for (int i = 0; i < pool->maxThreadCount; i++)
     {
         if (pool->tids[i] || isAlive(pool->tids[i]))
@@ -236,6 +241,12 @@ void threadPoolDestroy(ThreadPool* pool)
             pthread_join(pool->tids[i], NULL);
             pool->tids[i] = 0;
         }
+    }
+#endif
+    //等所有线程处理完后结束
+    while (pool->busyThreadCount != 0 || pool->curTaskCount != 0)
+    {
+        sleep(3);
     }
     threadPoolFree(pool);
 }
